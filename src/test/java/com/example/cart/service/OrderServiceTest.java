@@ -1,0 +1,85 @@
+package com.example.cart.service;
+
+import com.example.cart.model.Item;
+import com.example.cart.model.Order;
+import com.example.cart.model.OrderResponse;
+import com.example.cart.repository.ItemRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class OrderServiceTest {
+
+    @Mock
+    private ItemRepository itemRepository;
+
+    @InjectMocks
+    private OrderService orderService;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+    }
+
+    @Test
+    void calculateOrder_SingleItem() {
+
+        Item productInDb = Item.builder().productId(1).price(10.0).build();
+        when(itemRepository.getItem(1)).thenReturn(productInDb);
+
+        Item requestedItem = Item.builder().productId(1).quantity(2).build();
+        List<Item> requestedItems = List.of(requestedItem);
+        Order order = new Order();
+        order.setItems(requestedItems);
+
+        OrderResponse response = orderService.calculateOrder(order);
+
+        assertEquals(20.0, response.getOrderPrice());
+        assertEquals(2.0, response.getOrderVat());
+        assertEquals(1, response.getItems().size());
+
+        Item resultItem = response.getItems().get(0);
+        assertEquals(2, resultItem.getQuantity());
+        assertEquals(20.0, resultItem.getPrice());
+        assertEquals(2.0, resultItem.getVat());
+
+        verify(itemRepository, times(1)).getItem(1);
+    }
+
+    @Test
+    void calculateOrder_MultipleItems() {
+
+        Item product1 = Item.builder().productId(1).price(10.0).build();
+        Item product2 = Item.builder().productId(2).price(25.5).build();
+
+        when(itemRepository.getItem(1)).thenReturn(product1);
+        when(itemRepository.getItem(2)).thenReturn(product2);
+
+        List<Item> requestedItems = Arrays.asList(
+                Item.builder().productId(1).quantity(3).build(),
+                Item.builder().productId(2).quantity(2).build()
+        );
+
+        Order order = new Order();
+        order.setItems(requestedItems);
+
+        OrderResponse response = orderService.calculateOrder(order);
+
+        assertEquals(81.0, response.getOrderPrice());
+        assertEquals(8.1, response.getOrderVat());
+        assertEquals(2, response.getItems().size());
+
+        verify(itemRepository, times(1)).getItem(1);
+        verify(itemRepository, times(1)).getItem(2);
+    }
+
+}

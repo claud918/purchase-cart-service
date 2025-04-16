@@ -1,0 +1,106 @@
+package com.example.cart.controller;
+
+import com.example.cart.model.Item;
+import com.example.cart.model.Order;
+import com.example.cart.model.OrderRequest;
+import com.example.cart.model.OrderResponse;
+import com.example.cart.service.OrderService;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.util.List;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+@WebMvcTest(OrderController.class)
+@ContextConfiguration(classes = {OrderControllerTest.TestConfig.class})
+public class OrderControllerTest {
+
+    @Configuration
+    static class TestConfig {
+        @Bean
+        public OrderService orderService() {
+            return mock(OrderService.class);
+        }
+    }
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private OrderService orderService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Test
+    public void createOrder_ReturnsCorrectResponse() throws Exception {
+
+        Item item = new Item(1, 2, 10.0, 1.0);
+        Order order = new Order();
+        order.setItems(List.of(item));
+
+        OrderRequest request = new OrderRequest();
+        request.setOrder(order);
+
+        OrderResponse expectedResponse = OrderResponse.builder()
+                .orderId(1L)
+                .orderPrice(20.0)
+                .orderVat(2.0)
+                .items(List.of(item))
+                .build();
+
+        when(orderService.calculateOrder(any())).thenReturn(expectedResponse);
+
+        MvcResult result = mockMvc.perform(post("/order")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String responseContent = result.getResponse().getContentAsString();
+        OrderResponse actualResponse = objectMapper.readValue(responseContent, OrderResponse.class);
+
+        assertEquals(expectedResponse.getOrderId(), actualResponse.getOrderId());
+        assertEquals(expectedResponse.getOrderPrice(), actualResponse.getOrderPrice());
+        assertEquals(expectedResponse.getOrderVat(), actualResponse.getOrderVat());
+        assertEquals(expectedResponse.getItems().size(), actualResponse.getItems().size());
+    }
+
+    @Test
+    public void createOrder_WithEmptyOrder_ReturnsResponse() throws Exception {
+
+        Order order = new Order();
+        order.setItems(List.of());
+
+        OrderRequest request = new OrderRequest();
+        request.setOrder(order);
+
+        OrderResponse emptyResponse = OrderResponse.builder()
+                .orderId(1L)
+                .orderPrice(0.0)
+                .orderVat(0.0)
+                .items(List.of())
+                .build();
+
+        when(orderService.calculateOrder(any())).thenReturn(emptyResponse);
+
+        mockMvc.perform(post("/order")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+    }
+}

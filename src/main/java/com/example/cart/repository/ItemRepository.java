@@ -1,0 +1,29 @@
+package com.example.cart.repository;
+
+import com.example.cart.exception.ItemNotFoundException;
+import com.example.cart.model.Item;
+import org.springframework.stereotype.Repository;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@Repository
+public class ItemRepository {
+
+    private static final Map<Integer, Item> itemMap = new HashMap<>();
+
+    static {
+        itemMap.put(1,Item.builder().productId(1).price(2.00).build());
+        itemMap.put(2, Item.builder().productId(2).price(1.50).build());
+        itemMap.put(3, Item.builder().productId(3).price(3.00).build());
+    }
+
+    public Item getItem(int id) {
+        if (!itemMap.containsKey(id)) {
+            throw new ItemNotFoundException("Item with id " + id + " not found");
+        }
+        return itemMap.get(id);
+    }
+}
